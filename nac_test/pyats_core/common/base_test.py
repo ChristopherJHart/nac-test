@@ -53,10 +53,14 @@ class NACTestBase(aetest.Testcase):
     - Result collection during test execution
     - Connection pooling and retry logic (HTTP/API)
     - SSH command execution and tracking (SSH/Device)
+    - Class variable enforcement for test metadata
     """
 
-    # Status mapping for string to enum conversion
-    STATUS_MAPPING = {
+    # Test metadata class variables (enforced in subclasses)
+    TEST_TYPE_NAME: Optional[str] = None
+
+    # Status mapping for converting string status to ResultStatus enum
+    STATUS_MAPPING: Dict[str, ResultStatus] = {
         "PASSED": ResultStatus.PASSED,
         "FAILED": ResultStatus.FAILED,
         "SKIPPED": ResultStatus.SKIPPED,
@@ -68,6 +72,39 @@ class NACTestBase(aetest.Testcase):
     batching_reporter: Optional[BatchingReporter] = None
     step_interceptor: Optional[StepInterceptor] = None
     _current_test_context: Optional[str] = None
+
+    def __init_subclass__(cls, **kwargs):
+        """Enforce required class variables in subclasses.
+
+        This method validates that concrete test classes define required
+        class variables for proper test metadata and reporting.
+
+        Args:
+            **kwargs: Additional keyword arguments passed to super().__init_subclass__
+
+        Raises:
+            TypeError: If required class variables are not defined
+        """
+        super().__init_subclass__(**kwargs)
+
+        # Skip validation for known abstract intermediate classes
+        # These classes extend NACTestBase but are still meant to be subclassed
+        abstract_classes = {
+            "APICTestBase",
+            "SSHTestBase",
+            "NACTestBase",  # Include self to handle edge cases
+        }
+
+        if cls.__name__ in abstract_classes:
+            return
+
+        # Enforce TEST_TYPE_NAME for concrete test classes
+        if not hasattr(cls, "TEST_TYPE_NAME") or cls.TEST_TYPE_NAME is None:
+            raise TypeError(
+                f"{cls.__name__} must define TEST_TYPE_NAME class variable. "
+                f"Example: TEST_TYPE_NAME = 'BGP Peer' or 'Bridge Domain' or 'BFD Session'. "
+                f"This should be a human-readable name for the type of network element being tested."
+            )
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -1663,18 +1700,19 @@ class NACTestBase(aetest.Testcase):
     def get_test_type_name(self) -> str:
         """Return human-readable test type name for logging and reporting.
 
-        This is used in log messages and step names to identify what type of
-        verification is being performed.
+        This method returns the value of the TEST_TYPE_NAME class variable,
+        which is enforced by __init_subclass__ to ensure all concrete test
+        classes define it.
 
         Returns:
-            str: Test type name (e.g., 'BGP Peer', 'Bridge Domain Subnet', 'BFD Session')
+            str: Test type name from TEST_TYPE_NAME class variable
+                (e.g., 'BGP Peer', 'Bridge Domain Subnet', 'BFD Session')
 
-        Examples:
-            return "BGP Peer"
-            return "Bridge Domain Subnet"
-            return "BFD Session"
+        Note:
+            The TEST_TYPE_NAME class variable is enforced at class definition time,
+            so this method will always have a valid value for concrete test classes.
         """
-        raise NotImplementedError("Subclasses must implement get_test_type_name()")
+        return self.__class__.TEST_TYPE_NAME
 
     def extract_step_context(self, result: VerificationResult) -> Dict[str, Any]:
         """Extract relevant context fields from a result for PyATS step creation.
