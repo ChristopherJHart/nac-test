@@ -20,6 +20,7 @@ from typing import (
     Optional,
     Iterator,
     Union,
+    cast,
 )
 from functools import lru_cache
 from datetime import datetime
@@ -73,7 +74,7 @@ class NACTestBase(aetest.Testcase):
     step_interceptor: Optional[StepInterceptor] = None
     _current_test_context: Optional[str] = None
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """Enforce required class variables in subclasses.
 
         This method validates that concrete test classes define required
@@ -1219,7 +1220,7 @@ class NACTestBase(aetest.Testcase):
         if api_details:
             result["api_details"] = api_details
 
-        return result
+        return cast(BaseVerificationResultOptional, result)
 
     def create_comprehensive_skip_result(
         self,
@@ -1323,16 +1324,19 @@ class NACTestBase(aetest.Testcase):
         self.logger.info(f"Checked {len(schema_paths)} data model paths")
 
         # Create and return the skip result using the centralized formatter
-        return self.format_verification_result(
-            status=ResultStatus.SKIPPED,
-            context={
-                "test_scope": test_scope,
-                "schema_paths_checked": schema_paths,
-                "managed_objects": managed_objects,
-                "skip_type": "no_data_found",
-            },
-            reason=detailed_message,
-            api_duration=0,
+        return cast(
+            Dict[str, Any],
+            self.format_verification_result(
+                status=ResultStatus.SKIPPED,
+                context={
+                    "test_scope": test_scope,
+                    "schema_paths_checked": schema_paths,
+                    "managed_objects": managed_objects,
+                    "skip_type": "no_data_found",
+                },
+                reason=detailed_message,
+                api_duration=0,
+            ),
         )
 
     # =========================
@@ -1533,26 +1537,42 @@ class NACTestBase(aetest.Testcase):
             >>> failed, skipped, passed = self.categorize_results(results)
             >>> self.logger.info(f"Summary: {len(passed)} passed, {len(failed)} failed, {len(skipped)} skipped")
         """
-        failed = [
-            r
-            for r in results
-            if isinstance(r, dict)
-            and (r.get("status") == "FAILED" or r.get("status") == ResultStatus.FAILED)
-        ]
-        skipped = [
-            r
-            for r in results
-            if isinstance(r, dict)
-            and (
-                r.get("status") == "SKIPPED" or r.get("status") == ResultStatus.SKIPPED
-            )
-        ]
-        passed = [
-            r
-            for r in results
-            if isinstance(r, dict)
-            and (r.get("status") == "PASSED" or r.get("status") == ResultStatus.PASSED)
-        ]
+        failed = cast(
+            List[VerificationResult],
+            [
+                r
+                for r in results
+                if isinstance(r, dict)
+                and (
+                    r.get("status") == "FAILED"
+                    or r.get("status") == ResultStatus.FAILED
+                )
+            ],
+        )
+        skipped = cast(
+            List[VerificationResult],
+            [
+                r
+                for r in results
+                if isinstance(r, dict)
+                and (
+                    r.get("status") == "SKIPPED"
+                    or r.get("status") == ResultStatus.SKIPPED
+                )
+            ],
+        )
+        passed = cast(
+            List[VerificationResult],
+            [
+                r
+                for r in results
+                if isinstance(r, dict)
+                and (
+                    r.get("status") == "PASSED"
+                    or r.get("status") == ResultStatus.PASSED
+                )
+            ],
+        )
 
         return failed, skipped, passed
 
@@ -1726,7 +1746,7 @@ class NACTestBase(aetest.Testcase):
         failed, skipped, passed = self.categorize_results(results)
 
         # Log standardized result summary using abstract method
-        test_type = self.__class__.TEST_TYPE_NAME
+        test_type = cast(str, self.__class__.TEST_TYPE_NAME)
         self.log_result_summary(test_type, failed, skipped, passed)
 
         # Log skipped items with customizable formatting
@@ -1787,7 +1807,7 @@ class NACTestBase(aetest.Testcase):
         Args:
             skipped_results: List of skipped verification results
         """
-        test_type = self.__class__.TEST_TYPE_NAME
+        test_type = cast(str, self.__class__.TEST_TYPE_NAME)
         self.logger.warning(f"{len(skipped_results)} {test_type} verifications skipped")
 
         # Log first few skipped items as examples
@@ -1850,7 +1870,7 @@ class NACTestBase(aetest.Testcase):
             # Extract basic info for the standardized method
             status = result.get("status", "UNKNOWN")
             reason = result.get("reason", "")
-            test_type = self.__class__.TEST_TYPE_NAME
+            test_type = cast(str, self.__class__.TEST_TYPE_NAME)
 
             # Try to build item identifier from context
             item_identifier = self.build_item_identifier_from_context(result, context)
