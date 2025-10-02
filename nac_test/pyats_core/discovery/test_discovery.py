@@ -6,9 +6,10 @@ This module handles discovering and categorizing PyATS test files
 based on directory structure (api/ vs d2d/).
 """
 
+import ast
+import logging
 from pathlib import Path
 from typing import List, Tuple
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -156,3 +157,85 @@ class TestDiscovery:
         logger.info(f"Categorized tests: {len(api_tests)} API, {len(d2d_tests)} D2D")
 
         return api_tests, d2d_tests
+
+    def filter_tests_by_learning_mode_support(
+        self, test_files: List[Path]
+    ) -> Tuple[List[Path], List[Path]]:
+        """Filter test files based on learning mode support.
+
+        Uses AST parsing to check if test files contain test classes that use
+        LearningModeMixin. Tests using LearningModeMixin support learning/testing
+        mode, while tests that don't use the mixin rely on data models exclusively.
+
+        Args:
+            test_files: List of test file paths to filter
+
+        Returns:
+            Tuple of (learning_enabled_tests, traditional_tests)
+                - learning_enabled_tests: Tests that use LearningModeMixin
+                - traditional_tests: Tests that only use data models (no mixin)
+
+        Note:
+            This method uses AST parsing to statically analyze files without importing.
+            Parse errors are logged and those files are treated as traditional tests.
+        """
+        learning_enabled = []
+        traditional = []
+
+        for test_file in test_files:
+            try:
+                if self._test_supports_learning_mode(test_file):
+                    learning_enabled.append(test_file)
+                else:
+                    traditional.append(test_file)
+            except Exception as e:
+                # If we can't determine, treat as traditional (safe default)
+                logger.debug(
+                    f"Could not check learning mode support for {test_file.name}: {e}"
+                )
+                traditional.append(test_file)
+
+        logger.info(
+            f"Learning mode filter: {len(learning_enabled)} learning-enabled, "
+            f"{len(traditional)} traditional tests"
+        )
+
+        return learning_enabled, traditional
+
+    def _test_supports_learning_mode(self, test_file: Path) -> bool:
+        """Check if a test file contains classes that use LearningModeMixin.
+
+        Uses AST parsing to statically analyze the file without importing it,
+        avoiding all sys.argv/sys.modules issues and improving performance.
+
+        Args:
+            test_file: Path to the test file to check
+
+        Returns:
+            True if the file contains learning-enabled test classes, False otherwise
+        """
+        try:
+            # Read and parse the file's AST
+            source_code = test_file.read_text()
+            tree = ast.parse(source_code, filename=str(test_file))
+
+            # Look for class definitions that use LearningModeMixin
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    # Check each base class
+                    for base in node.bases:
+                        # Handle simple name: class MyTest(LearningModeMixin, SSHTestBase)
+                        if isinstance(base, ast.Name) and base.id == "LearningModeMixin":
+                            return True
+
+                        # Handle attribute access: class MyTest(mixins.LearningModeMixin, SSHTestBase)
+                        if isinstance(base, ast.Attribute) and base.attr == "LearningModeMixin":
+                            return True
+
+            return False
+
+        except Exception as e:
+            logger.debug(
+                f"Error parsing {test_file.name} for learning mode support: {e}"
+            )
+            return False
