@@ -11,6 +11,7 @@ from nac_test.pyats_core.orchestrator import PyATSOrchestrator
 from nac_test.pyats_core.discovery import TestDiscovery
 from nac_test.robot.orchestrator import RobotOrchestrator
 from nac_test.utils.logging import VerbosityLevel
+from nac_test.utils.types import TestExecutionModeOptions
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class CombinedOrchestrator:
         templates_dir: Path,
         output_dir: Path,
         merged_data_filename: str,
+        test_execution_mode: TestExecutionModeOptions,
         filters_path: Optional[Path] = None,
         tests_path: Optional[Path] = None,
         include_tags: Optional[List[str]] = None,
@@ -49,6 +51,7 @@ class CombinedOrchestrator:
             templates_dir: Directory containing test templates and PyATS test files
             output_dir: Base directory for test output
             merged_data_filename: Name of the merged data model file
+            test_execution_mode: Test execution mode - "learning" or "testing" (PyATS only)
             filters_path: Path to Jinja filters (Robot only)
             tests_path: Path to Jinja tests (Robot only)
             include_tags: Tags to include (Robot only)
@@ -76,6 +79,7 @@ class CombinedOrchestrator:
         # PyATS-specific parameters
         self.max_parallel_devices = max_parallel_devices
         self.verbosity = verbosity
+        self.test_execution_mode = test_execution_mode
 
         # Development modes
         self.dev_pyats_only = dev_pyats_only
@@ -102,6 +106,7 @@ class CombinedOrchestrator:
                 test_dir=self.templates_dir,
                 output_dir=self.output_dir,
                 merged_data_filename=self.merged_data_filename,
+                test_execution_mode=self.test_execution_mode,
             )
             if self.max_parallel_devices is not None:
                 orchestrator.max_parallel_devices = self.max_parallel_devices
@@ -152,6 +157,7 @@ class CombinedOrchestrator:
                 test_dir=self.templates_dir,
                 output_dir=self.output_dir,
                 merged_data_filename=self.merged_data_filename,
+                test_execution_mode=self.test_execution_mode,
             )
             if self.max_parallel_devices is not None:
                 orchestrator.max_parallel_devices = self.max_parallel_devices

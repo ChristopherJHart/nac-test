@@ -14,6 +14,7 @@ from .testbed_generator import TestbedGenerator
 from nac_test.utils.path_setup import get_pythonpath_for_tests
 from nac_test.pyats_core.execution.subprocess_runner import SubprocessRunner
 from nac_test.pyats_core.execution.job_generator import JobGenerator
+from nac_test.utils.types import TestExecutionModeOptions
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class DeviceExecutor:
         subprocess_runner: SubprocessRunner,
         test_status: dict[str, Any],
         test_dir: Path,
+        test_execution_mode: TestExecutionModeOptions,
     ):
         """Initialize device executor.
 
@@ -35,11 +37,13 @@ class DeviceExecutor:
             subprocess_runner: SubprocessRunner instance for executing jobs
             test_status: Dictionary for tracking test status
             test_dir: Directory containing PyATS test files (user-specified)
+            test_execution_mode: Test execution mode - TestExecutionModeOptions.LEARNING or TESTING
         """
         self.job_generator = job_generator
         self.subprocess_runner = subprocess_runner
         self.test_status = test_status
         self.test_dir = test_dir
+        self.test_execution_mode = test_execution_mode
 
     async def run_device_job_with_semaphore(
         self,
@@ -103,6 +107,7 @@ class DeviceExecutor:
                             self.subprocess_runner.output_dir
                             / "merged_data_model_test_variables.yaml"
                         ),
+                        "TEST_EXECUTION_MODE": self.test_execution_mode.value,
                         "PYTHONPATH": get_pythonpath_for_tests(
                             self.test_dir, [nac_test_dir]
                         ),

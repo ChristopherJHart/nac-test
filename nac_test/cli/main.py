@@ -283,6 +283,7 @@ def main(
         templates_dir=templates,
         output_dir=output,
         merged_data_filename=merged_data_filename,
+        test_execution_mode=test_execution_mode,
         filters_path=filters,
         tests_path=tests,
         include_tags=include,

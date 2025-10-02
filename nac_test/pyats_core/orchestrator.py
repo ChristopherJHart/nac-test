@@ -38,6 +38,7 @@ from nac_test.utils.system_resources import SystemResourceCalculator
 from nac_test.utils.terminal import terminal
 from nac_test.utils.environment import EnvironmentValidator
 from nac_test.utils.cleanup import cleanup_pyats_runtime, cleanup_old_test_outputs
+from nac_test.utils.types import TestExecutionModeOptions
 
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ class PyATSOrchestrator:
         test_dir: Path,
         output_dir: Path,
         merged_data_filename: str,
+        test_execution_mode: TestExecutionModeOptions,
     ):
         """Initialize the PyATS orchestrator.
 
@@ -60,6 +62,7 @@ class PyATSOrchestrator:
             test_dir: Directory containing PyATS test files
             output_dir: Base output directory (orchestrator creates pyats_results subdirectory)
             merged_data_filename: Name of the merged data model file
+            test_execution_mode: Test execution mode - TestExecutionModeOptions.LEARNING or TESTING
         """
         self.data_paths = data_paths
         self.test_dir = Path(test_dir).resolve()
@@ -70,6 +73,7 @@ class PyATSOrchestrator:
             self.base_output_dir / "pyats_results"
         )  # PyATS works in its own subdirectory
         self.merged_data_filename = merged_data_filename
+        self.test_execution_mode = test_execution_mode
 
         # Track test status by type for combined summary
         self.api_test_status: Dict[str, Dict[str, Any]] = {}
@@ -205,6 +209,7 @@ class PyATSOrchestrator:
             env["MERGED_DATA_MODEL_TEST_VARIABLES_FILEPATH"] = str(
                 (self.base_output_dir / self.merged_data_filename).resolve()
             )
+            env["TEST_EXECUTION_MODE"] = self.test_execution_mode.value
             nac_test_dir = str(Path(__file__).parent.parent.parent)
             env["PYTHONPATH"] = get_pythonpath_for_tests(self.test_dir, [nac_test_dir])
 
@@ -313,6 +318,7 @@ class PyATSOrchestrator:
                 self.subprocess_runner,
                 self.d2d_test_status,  # Use d2d_test_status for device tests
                 self.test_dir,
+                self.test_execution_mode,
             )
 
         # Use a local narrowed variable to satisfy mypy
