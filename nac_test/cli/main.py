@@ -3,7 +3,9 @@
 # Copyright: (c) 2022, Daniel Schmidt <danischm@cisco.com>
 
 import logging
+from enum import Enum
 from typing import Optional
+
 
 import errorhandler
 
@@ -197,6 +199,24 @@ MaxParallelDevices = Annotated[
 ]
 
 
+class TestExecutionModeOptions(str, Enum):
+    """Possible options for the test execution mode."""
+
+    LEARNING = "learning"
+    TESTING = "testing"
+
+
+TestExecutionMode = Annotated[
+    TestExecutionModeOptions,
+    typer.Option(
+        "-x",
+        "--test-execution-mode",
+        help="The mode in which to execute the tests.",
+        envvar="NAC_TEST_TEST_EXECUTION_MODE",
+    ),
+]
+
+
 Version = Annotated[
     bool,
     typer.Option(
@@ -223,6 +243,7 @@ def main(
     robot: Robot = False,
     max_parallel_devices: Optional[MaxParallelDevices] = None,
     verbosity: Verbosity = VerbosityLevel.WARNING,
+    test_execution_mode: TestExecutionMode = TestExecutionModeOptions.TESTING,
     version: Version = False,
     merged_data_filename: MergedDataFilename = "merged_data_model_test_variables.yaml",
 ) -> None:
