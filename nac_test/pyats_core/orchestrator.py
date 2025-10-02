@@ -456,7 +456,42 @@ class PyATSOrchestrator:
             return
 
         print(f"Discovered {len(test_files)} PyATS test files")
-        print(f"Running with {self.max_workers} parallel workers")
+
+        # Filter tests based on learning mode support
+        if self.test_execution_mode == TestExecutionModeOptions.LEARNING:
+            # In learning mode, only run tests that support learning
+            learning_tests, traditional_tests = (
+                self.test_discovery.filter_tests_by_learning_mode_support(test_files)
+            )
+
+            if not learning_tests:
+                print(
+                    terminal.warning(
+                        "No learning-enabled tests found. "
+                        "Tests must use LearningModeMixin to support learning mode."
+                    )
+                )
+                print("\nTo enable learning mode for a test, use:")
+                print("  class MyTest(LearningModeMixin, SSHTestBase):")
+                print("      def collect_current_state(self): ...")
+                print("      def compare_states(self, current, expected): ...")
+                return
+
+            if traditional_tests:
+                print(
+                    terminal.info(
+                        f"Skipping {len(traditional_tests)} traditional test(s) in learning mode"
+                    )
+                )
+
+            # Use only learning-enabled tests
+            test_files = learning_tests
+            print(f"Running {len(test_files)} learning-enabled test(s)")
+        else:
+            # In testing mode, run all tests (both learning and traditional)
+            print(f"Running {len(test_files)} test(s) in testing mode")
+
+        print(f"Parallel workers: {self.max_workers}")
 
         # Categorize tests by type (api/ vs d2d/)
         try:
