@@ -3,7 +3,6 @@
 # Copyright: (c) 2022, Daniel Schmidt <danischm@cisco.com>
 
 import logging
-from enum import Enum
 from typing import Optional
 
 
@@ -18,6 +17,7 @@ import nac_test
 from nac_test.combined_orchestrator import CombinedOrchestrator
 from nac_test.utils.logging import configure_logging, VerbosityLevel
 from nac_test.data_merger import DataMerger
+from nac_test.utils.types import TestExecutionModeOptions
 from datetime import datetime
 
 
@@ -197,13 +197,6 @@ MaxParallelDevices = Annotated[
         max=500,
     ),
 ]
-
-
-class TestExecutionModeOptions(str, Enum):
-    """Possible options for the test execution mode."""
-
-    LEARNING = "learning"
-    TESTING = "testing"
 
 
 TestExecutionMode = Annotated[
