@@ -1,29 +1,38 @@
-"""Base class for tests that support learning/testing mode."""
+"""Mixin for tests that support learning/testing mode."""
 
+import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
-from nac_test.pyats_core.common.base_test import NACTestBase
+if TYPE_CHECKING:
+    # Type hints for attributes this mixin expects from the base class
+    # These will be provided by NACTestBase (or its subclasses like SSHTestBase, APITestBase)
+    from nac_test.pyats_core.reporting.collector import TestResultCollector
 
 
-class LearningModeTestBase(NACTestBase):
-    """Base class for tests that support learning/testing mode.
+class LearningModeMixin:
+    """Mixin that adds learning/testing mode capabilities to test classes.
 
-    This specialized test class extends NACTestBase with learning mode capabilities,
-    allowing tests to capture current network state (learning mode) and later verify
-    against it (testing mode).
+    This mixin can be combined with any test base class (NACTestBase, SSHTestBase,
+    APITestBase, etc.) to add learning mode capabilities. Tests can capture current
+    network state (learning mode) and later verify against it (testing mode).
 
     Subclasses must implement:
     - collect_current_state(): Return dict with current state to capture/verify
     - compare_states(current, expected): Compare states, raise exception if mismatch
 
-    The class provides the SUPPORTS_LEARNING_MODE marker that allows the orchestrator
-    to filter tests when running in learning mode - only tests inheriting from this
-    class will execute in learning mode.
+    The SUPPORTS_LEARNING_MODE marker allows the orchestrator to filter tests when
+    running in learning mode - only tests using this mixin will execute in learning mode.
+
+    Expected attributes from base class:
+    - logger: logging.Logger - For logging messages
+    - result_collector: TestResultCollector - For tracking test results
+    - failed(msg): Method to mark test as failed
+    - passed(msg): Method to mark test as passed
 
     Example:
-        >>> class BGPOperationalTest(LearningModeTestBase):
+        >>> class BGPOperationalTest(LearningModeMixin, SSHTestBase):
         ...     '''Test that captures and verifies BGP operational state.'''
         ...
         ...     def collect_current_state(self):
@@ -43,11 +52,24 @@ class LearningModeTestBase(NACTestBase):
         ...         self.handle_test_execution_mode()
 
     Note:
-        Tests that don't inherit from this class will be skipped when running in
-        learning mode, but will execute normally in testing mode (using data models only).
+        Tests that don't use this mixin will be skipped when running in learning mode,
+        but will execute normally in testing mode (using data models only).
     """
 
     SUPPORTS_LEARNING_MODE: bool = True
+
+    # Type hints for attributes expected from base class (duck typing)
+    if TYPE_CHECKING:
+        logger: logging.Logger
+        result_collector: "TestResultCollector"
+
+        def failed(self, reason: str) -> None:
+            """Mark test as failed (provided by PyATS aetest.Testcase)."""
+            ...
+
+        def passed(self, reason: str = "") -> None:
+            """Mark test as passed (provided by PyATS aetest.Testcase)."""
+            ...
 
     # =========================================================================
     # ABSTRACT METHODS - Must be implemented by subclasses
@@ -56,7 +78,7 @@ class LearningModeTestBase(NACTestBase):
     def collect_current_state(self) -> Dict[str, Any]:
         """Collect the current state for learning/testing mode.
 
-        This method must be overridden by subclasses that inherit from LearningModeTestBase.
+        This method must be overridden by subclasses that use LearningModeMixin.
         It should return a dictionary representing the current state of the system
         that will be saved (in learning mode) or compared (in testing mode).
 
@@ -84,7 +106,7 @@ class LearningModeTestBase(NACTestBase):
     ) -> None:
         """Compare current state against expected state.
 
-        This method must be overridden by subclasses that inherit from LearningModeTestBase.
+        This method must be overridden by subclasses that use LearningModeMixin.
         It should compare the current state against the expected state and raise
         an exception if there are differences.
 
