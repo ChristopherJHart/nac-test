@@ -1,12 +1,14 @@
-from nac_test.pyats_core.common.base_test import NACTestBase
-from nac_test.pyats_core.ssh.command_cache import CommandCache
-from nac_test.pyats_core.broker.broker_client import BrokerClient, BrokerCommandExecutor
 import asyncio
-from pyats import aetest
+import json
 import logging
 import os
-import json
-from typing import Any, Optional, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Optional
+
+from pyats import aetest
+
+from nac_test.pyats_core.broker.broker_client import BrokerClient, BrokerCommandExecutor
+from nac_test.pyats_core.common.base_test import NACTestBase
+from nac_test.pyats_core.ssh.command_cache import CommandCache
 
 
 class SSHTestBase(NACTestBase):
@@ -31,9 +33,15 @@ class SSHTestBase(NACTestBase):
         Returns:
             The PyATS testbed object if available, None otherwise.
         """
-        # In PyATS aetest, the testbed is available via self.parent (runtime)
-        if hasattr(self.parent, "testbed"):
+        # Check multiple locations where testbed might be available:
+        # 1. Direct attribute on parent (when set by job file)
+        if hasattr(self.parent, "testbed") and self.parent.testbed is not None:
             return self.parent.testbed
+
+        # 2. In parent's parameters (when passed via runtime.tasks.run(testbed=...))
+        if hasattr(self.parent, "parameters") and "testbed" in self.parent.parameters:
+            return self.parent.parameters["testbed"]
+
         return None
 
     @property
