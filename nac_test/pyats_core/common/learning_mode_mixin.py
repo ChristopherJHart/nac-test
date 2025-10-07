@@ -115,19 +115,16 @@ class LearningModeMixin(aetest.Testcase):
             Path to the parameters JSON file for this test
 
         Raises:
-            FileNotFoundError: If MERGED_DATA_MODEL_TEST_VARIABLES_FILEPATH is not set
+            FileNotFoundError: If TEST_PARAMETERS_DIR is not set
         """
-        data_file_path = os.environ.get("MERGED_DATA_MODEL_TEST_VARIABLES_FILEPATH")
-        if not data_file_path:
+        parameters_dir_path = os.environ.get("TEST_PARAMETERS_DIR")
+        if not parameters_dir_path:
             raise FileNotFoundError(
-                "Environment variable MERGED_DATA_MODEL_TEST_VARIABLES_FILEPATH is not set"
+                "Environment variable TEST_PARAMETERS_DIR is not set"
             )
 
-        data_file = Path(data_file_path)
-        data_dir = data_file.parent
-
-        # Create test_parameters directory under data directory
-        parameters_dir = data_dir / "test_parameters"
+        # Create test_parameters directory (and any parent directories)
+        parameters_dir = Path(parameters_dir_path)
         parameters_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate filename based on test class name or provided name

@@ -151,8 +151,34 @@ class SSHTestBase(NACTestBase):
             if self.testbed_device:
                 # Connect via testbed to enable Genie features
                 self.logger.info(f"Connecting to device {hostname} via PyATS testbed")
+
+                # Apply timeout settings from device_info if present
+                # These come from testbed.yaml via get_ssh_device_inventory()
+                connection_timeout = self.device_info.get("connection_timeout")
+                exec_timeout = self.device_info.get("exec_timeout")
+
+                if connection_timeout is not None:
+                    self.logger.info(f"Using connection timeout: {connection_timeout}s")
+                if exec_timeout is not None:
+                    self.logger.info(
+                        f"Using command execution timeout: {exec_timeout}s"
+                    )
+
+                # Build connection kwargs with timeouts
+                connect_kwargs = {}
+                if connection_timeout is not None:
+                    connect_kwargs["timeout"] = connection_timeout
+
                 loop = asyncio.get_event_loop()
-                await loop.run_in_executor(None, self.testbed_device.connect)
+                await loop.run_in_executor(
+                    None, lambda: self.testbed_device.connect(**connect_kwargs)
+                )
+
+                # Apply exec_timeout to the device's default timeout setting if specified
+                if exec_timeout is not None and hasattr(self.testbed_device, "timeout"):
+                    self.testbed_device.timeout = exec_timeout
+                    self.logger.debug(f"Set device command timeout to {exec_timeout}s")
+
                 # Store the testbed device connection for command execution
                 self.connection = self.testbed_device
             else:

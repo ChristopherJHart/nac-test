@@ -210,6 +210,10 @@ class PyATSOrchestrator:
                 (self.base_output_dir / self.merged_data_filename).resolve()
             )
             env["TEST_EXECUTION_MODE"] = self.test_execution_mode.value
+            # Set TEST_PARAMETERS_DIR for learning mode - points to data/test_parameters
+            env["TEST_PARAMETERS_DIR"] = str(
+                (self.base_output_dir / "test_parameters").resolve()
+            )
             nac_test_dir = str(Path(__file__).parent.parent.parent)
             env["PYTHONPATH"] = get_pythonpath_for_tests(self.test_dir, [nac_test_dir])
 

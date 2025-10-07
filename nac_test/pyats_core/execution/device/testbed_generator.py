@@ -46,6 +46,27 @@ class TestbedGenerator:
         if device.get("ssh_options"):
             connection_args["ssh_options"] = device["ssh_options"]
 
+        # Add timeout settings if present
+        if (
+            device.get("connection_timeout") is not None
+            or device.get("exec_timeout") is not None
+        ):
+            connection_args["arguments"] = {}
+            if device.get("connection_timeout") is not None:
+                connection_args["arguments"]["connection_timeout"] = device[
+                    "connection_timeout"
+                ]
+
+        if (
+            device.get("exec_timeout") is not None
+            or device.get("config_timeout") is not None
+        ):
+            connection_args["settings"] = {}
+            if device.get("exec_timeout") is not None:
+                connection_args["settings"]["EXEC_TIMEOUT"] = device["exec_timeout"]
+            if device.get("config_timeout") is not None:
+                connection_args["settings"]["CONFIG_TIMEOUT"] = device["config_timeout"]
+
         # Build the testbed structure
         testbed = {
             "testbed": {
@@ -134,6 +155,29 @@ class TestbedGenerator:
             # Add optional SSH arguments if provided
             if device.get("ssh_options"):
                 connection_args["ssh_options"] = device["ssh_options"]
+
+            # Add timeout settings if present
+            if (
+                device.get("connection_timeout") is not None
+                or device.get("exec_timeout") is not None
+            ):
+                connection_args["arguments"] = {}
+                if device.get("connection_timeout") is not None:
+                    connection_args["arguments"]["connection_timeout"] = device[
+                        "connection_timeout"
+                    ]
+
+            if (
+                device.get("exec_timeout") is not None
+                or device.get("config_timeout") is not None
+            ):
+                connection_args["settings"] = {}
+                if device.get("exec_timeout") is not None:
+                    connection_args["settings"]["EXEC_TIMEOUT"] = device["exec_timeout"]
+                if device.get("config_timeout") is not None:
+                    connection_args["settings"]["CONFIG_TIMEOUT"] = device[
+                        "config_timeout"
+                    ]
 
             # Add device to testbed
             testbed["devices"][hostname] = {
