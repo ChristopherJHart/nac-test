@@ -87,6 +87,7 @@ class CombinedOrchestrator:
         exclude_tags: list[str] | None = None,
         render_only: bool = False,
         dry_run: bool = False,
+        learn: bool = False,
         max_parallel_devices: int | None = None,
         minimal_reports: bool = False,
         custom_testbed_path: Path | None = None,
@@ -134,6 +135,7 @@ class CombinedOrchestrator:
         self.exclude_tags = exclude_tags or []
         self.render_only = render_only
         self.dry_run = dry_run
+        self.learn = learn
         self.processes = processes
         self.extra_args = extra_args
 
@@ -225,6 +227,7 @@ class CombinedOrchestrator:
                 custom_testbed_path=self.custom_testbed_path,
                 controller_context=self.controller_context,
                 dry_run=self.dry_run,
+                learn=self.learn,
                 verbose=self.verbose,
                 loglevel=self.loglevel,
                 include_tags=self.include_tags,

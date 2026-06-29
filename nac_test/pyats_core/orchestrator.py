@@ -71,6 +71,7 @@ class PyATSOrchestrator:
         custom_testbed_path: Path | None = None,
         controller_context: ControllerContext | None = None,
         dry_run: bool = False,
+        learn: bool = False,
         verbose: bool = False,
         loglevel: LogLevel = DEFAULT_LOGLEVEL,
         include_tags: list[str] | None = None,
@@ -108,6 +109,7 @@ class PyATSOrchestrator:
         self.minimal_reports = minimal_reports
         self.custom_testbed_path = custom_testbed_path
         self.dry_run = dry_run
+        self.learn = learn
         self.verbose = verbose
         self.loglevel = loglevel
         self.include_tags = include_tags
@@ -280,6 +282,12 @@ class PyATSOrchestrator:
             env[ENV_TEST_DIR] = str(self.test_dir)
             # Serialize controller context for subprocess transport
             env[ENV_CONTROLLER_CONTEXT] = self.controller_context.to_json()
+            # Learning mode: propagate flag and set output directory
+            if self.learn:
+                env["NAC_TEST_LEARN"] = "1"
+                learned_state_dir = self.base_output_dir / "learned_state"
+                learned_state_dir.mkdir(parents=True, exist_ok=True)
+                env["NAC_TEST_LEARNED_STATE_DIR"] = str(learned_state_dir)
 
             # Execute and return the archive path
             assert self.subprocess_runner is not None  # Should be initialized by now
@@ -369,6 +377,13 @@ class PyATSOrchestrator:
                 # Serialize controller context for subprocess transport
                 os.environ[ENV_CONTROLLER_CONTEXT] = self.controller_context.to_json()
 
+                # Learning mode: propagate to D2D subprocesses via os.environ
+                if self.learn:
+                    os.environ["NAC_TEST_LEARN"] = "1"
+                    learned_state_dir = self.base_output_dir / "learned_state"
+                    learned_state_dir.mkdir(parents=True, exist_ok=True)
+                    os.environ["NAC_TEST_LEARNED_STATE_DIR"] = str(learned_state_dir)
+
                 # Execute device tests with broker running
                 return await self._execute_device_tests_with_broker(test_files, devices)
 
@@ -381,6 +396,8 @@ class PyATSOrchestrator:
             # Clean up environment variables
             os.environ.pop("NAC_TEST_BROKER_SOCKET", None)
             os.environ.pop(ENV_CONTROLLER_CONTEXT, None)
+            os.environ.pop("NAC_TEST_LEARN", None)
+            os.environ.pop("NAC_TEST_LEARNED_STATE_DIR", None)
 
     async def _execute_device_tests_with_broker(
         self, test_files: list[Path], devices: list[dict[str, Any]]
