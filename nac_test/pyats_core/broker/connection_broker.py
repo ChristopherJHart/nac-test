@@ -73,6 +73,8 @@ class ConnectionBroker:
         # Health check cache - avoids repeated device.connected probes
         self._health_cache: dict[int, float] = {}  # id(connection) -> last_check_time
         self._HEALTH_CHECK_TTL: float = 30.0  # seconds
+        # Per-device execute locks — prevents interleaved I/O on shared Unicon spawns
+        self._execute_locks: dict[str, asyncio.Lock] = {}
 
         # Socket server
         self.server: asyncio.Server | None = None
@@ -277,26 +279,34 @@ class ConnectionBroker:
         # Ensure device is connected
         connection = await self._get_connection(hostname)
 
-        # Execute command in thread pool (since Unicon is synchronous)
-        loop = get_or_create_event_loop()
-        try:
-            output = await loop.run_in_executor(None, connection.execute, cmd)
-            output_str = str(output)
+        # Serialize command execution per device. Unicon's spawn is not
+        # thread-safe — concurrent execute() calls on the same device
+        # interleave I/O on the PTY. This lock ensures one command at a
+        # time per device while still allowing cross-device parallelism.
+        if hostname not in self._execute_locks:
+            self._execute_locks[hostname] = asyncio.Lock()
 
-            # Cache the output for future requests
-            cache.set(cmd, output_str)
-            logger.info(
-                f"Cached command output for '{cmd}' on {hostname} ({len(output_str)} chars)"
-            )
+        async with self._execute_locks[hostname]:
+            loop = get_or_create_event_loop()
+            try:
+                output = await loop.run_in_executor(None, connection.execute, cmd)
+                output_str = str(output)
 
-            return output_str
-        except SubCommandFailure as e:
-            logger.warning(f"Command rejected by {hostname} (session intact): {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Transport failure on {hostname}, disconnecting: {e}")
-            await self._disconnect_device(hostname)
-            raise
+                # Cache the output for future requests
+                cache.set(cmd, output_str)
+                logger.info(
+                    f"Cached command output for '{cmd}' on {hostname} "
+                    f"({len(output_str)} chars)"
+                )
+
+                return output_str
+            except SubCommandFailure as e:
+                logger.warning(f"Command rejected by {hostname} (session intact): {e}")
+                raise
+            except Exception as e:
+                logger.error(f"Transport failure on {hostname}, disconnecting: {e}")
+                await self._disconnect_device(hostname)
+                raise
 
     async def _get_connection(self, hostname: str) -> Any:
         """Get or create connection to device."""
