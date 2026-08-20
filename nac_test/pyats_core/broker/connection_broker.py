@@ -491,9 +491,14 @@ class ConnectionBroker:
             writer.close()
             await writer.wait_closed()
 
-        # Disconnect all devices
-        for hostname in list(self.connected_devices.keys()):
-            await self._disconnect_device(hostname)
+        # Disconnect all devices concurrently — serial disconnects take ~10-12s each
+        # (Unicon waits for graceful SSH session teardown), so 19 devices serial = ~200s.
+        # Parallel brings this down to the single slowest disconnect (~12s).
+        if self.connected_devices:
+            await asyncio.gather(*[
+                self._disconnect_device(hostname)
+                for hostname in list(self.connected_devices.keys())
+            ], return_exceptions=True)
 
         # Stop socket server
         if self.server:
